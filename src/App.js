@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import ImageLinkForm from './components/ImageLinkForm/ImageLinkForm'
 import FaceRecognition from './components/FaceRecognition/FaceRecognition'
-import 'tachyons'
-import './App.css'
 import Clarifai from 'clarifai'
 import { CLARIFAI_API_KEY } from './api-keys'
+import 'tachyons'
+import './App.css'
 
 function App() {
 	const [input, setInput] = useState('')
 	const [imageUrl, setImageUrl] = useState('')
-	const [box, setBox] = useState({})
+	const [boxes, setBoxes] = useState([])
 
 	const onImageSubmit = (event) => {
 		event.preventDefault()
@@ -17,22 +17,26 @@ function App() {
 		const app = new Clarifai.App({
 			apiKey: CLARIFAI_API_KEY
 		})
-		app.models.predict('d02b4508df58432fbb84e800597b8959', input)
-			.then(response => {
-				console.log(response)
-				const totalFaces = response.outputs[0].data.regions.length
-				console.log(totalFaces, 'faces detected')
+		if (input !== imageUrl) {
+			app.models.predict(Clarifai.FACE_DETECT_MODEL, input)
+				.then(response => {
+					// console.log(response)
+					const totalFaces = response.outputs[0].data.regions
+					console.log(totalFaces.length, 'faces detected')
 
-				const faceBox = calculateFaceLocation(response)
-				setBox(faceBox)
-			})
-			.catch(err => {
-				console.log(err.toJSON())
-			})
+					setBoxes(
+						totalFaces.map(face =>
+							calculateFaceLocation(face))
+					)
+				})
+				.catch(err => {
+					console.log(err.toJSON())
+				})
+		}
 	}
 
 	const calculateFaceLocation = (data) => {
-		const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box
+		const clarifaiFace = data.region_info.bounding_box
 		const image = document.getElementById('inputImage')
 		const width = Number(image.width)
 		const height = Number(image.height)
@@ -48,7 +52,7 @@ function App() {
 		<div className="App">
 			<div>
 				<ImageLinkForm onInputChange={e => setInput(e.target.value)} onImageSubmit={onImageSubmit} />
-				<FaceRecognition imageUrl={imageUrl} box={box} />
+				<FaceRecognition imageUrl={imageUrl} boxes={boxes} />
 			</div>
 		</div>
 	);
